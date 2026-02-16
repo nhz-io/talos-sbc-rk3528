@@ -15,5 +15,5 @@ spec:
 ---
 kind: common.Build
 spec:
-    ignoredPaths:
-      - go.work.sum
+  ignoredPaths:
+    - go.work.sum
