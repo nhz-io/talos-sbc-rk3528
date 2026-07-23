@@ -71,4 +71,4 @@ steps:
         unlink /rootfs/lib/modules/$KERNELRELEASE/build 2>/dev/null || true
 finalize:
   - from: /rootfs
-    to: /
+    to: /rootfs
