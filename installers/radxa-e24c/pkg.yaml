@@ -9,6 +9,7 @@ steps:
       PATH: /toolchain/go/bin:/toolchain/bin:/usr/bin:/bin
       SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
       GODEBUG: x509useFallbackRoots=0
+      GOTOOLCHAIN: local
     network: default
     cachePaths:
       - /.cache/go-build
@@ -21,6 +22,7 @@ steps:
       GOPATH: /tmp/go
       PATH: /toolchain/go/bin:/toolchain/bin:/usr/bin:/bin
       SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
+      GOTOOLCHAIN: local
     cachePaths:
       - /.cache/go-build
       - /tmp/go/pkg

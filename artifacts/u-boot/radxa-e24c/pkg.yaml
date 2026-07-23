@@ -20,16 +20,19 @@ steps:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
       PATH: /toolchain/bin:/usr/bin:/bin
       SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
+      LD_LIBRARY_PATH: /toolchain/lib
+    network: default
     prepare:
       - |
         tar xf u-boot.tar.bz2 --strip-components=1
 
-        mkdir -p /usr/bin \
+        mkdir -p /usr/bin /bin \
           && ln -sf /toolchain/bin/env /usr/bin/env \
-          && ln -sf /toolchain/bin/python3 /toolchain/bin/python
+          && ln -sf /toolchain/bin/python3 /toolchain/bin/python \
+          && ln -sf /toolchain/bin/bash /bin/sh \
+          && ln -sf /toolchain/bin/bash /bin/bash
 
-        pip3 install pyelftools
-      - |
+        pip3 install pyelftools setuptools
         make generic-rk3528_defconfig
     build:
       - |
