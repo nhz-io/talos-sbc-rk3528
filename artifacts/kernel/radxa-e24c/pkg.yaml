@@ -46,6 +46,11 @@ steps:
 
         # Enable CONFIG_USERFAULTFD — Talos requires vm.unprivileged_userfaultfd sysctl
         scripts/config --enable USERFAULTFD
+
+        # Enable RK3528 Ethernet (stmmac/dwmac-rk) — not picked up by olddefconfig from 6.12 config
+        scripts/config --enable STMMAC_ETH
+        scripts/config --enable STMMAC_PLATFORM
+        scripts/config --enable DWMAC_ROCKCHIP
       - |
         make -j $(nproc) prepare
     build:
