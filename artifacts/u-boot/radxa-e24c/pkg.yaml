@@ -1,11 +1,15 @@
 # References:
 #   U-Boot:
 #     - https://u-boot.readthedocs.io/en/latest
-name: u-boot
+#   RK3528 U-Boot support:
+#     - https://docs.u-boot.org/en/v2025.07/board/rockchip/rockchip.html
+name: u-boot-radxa-e24c
 variant: scratch
-shell: /toolchain/bin/bash
+shell: /bin/bash
 dependencies:
   - stage: base
+  - stage: rkbin-rk3528
+
 steps:
   - sources:
       - url: https://ftp.denx.de/pub/u-boot/u-boot-{{ .uboot_version }}.tar.bz2
@@ -16,22 +20,22 @@ steps:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
     prepare:
       - |
+        tar xf u-boot.tar.bz2 --strip-components=1
+
         mkdir -p /usr/bin \
           && ln -sf /toolchain/bin/env /usr/bin/env \
           && ln -sf /toolchain/bin/python3 /toolchain/bin/python
 
         pip3 install pyelftools
-
-        tar xf u-boot.tar.bz2 --strip-components=1
       - |
-        make board_defconfig
+        make generic-rk3528_defconfig
     build:
       - |
-        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto"
+        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" BL31=/libs/rkbin/bl31.elf ROCKCHIP_TPL=/libs/rkbin/ddr.bin
     install:
       - |
-        mkdir -p /rootfs/artifacts/arm64/u-boot/board
-        cp -v u-boot.bin /rootfs/artifacts/arm64/u-boot/board
+        mkdir -p /rootfs/artifacts/arm64/u-boot/radxa-e24c
+        cp -v -t /rootfs/artifacts/arm64/u-boot/radxa-e24c u-boot-rockchip.bin
 finalize:
   - from: /rootfs
     to: /rootfs

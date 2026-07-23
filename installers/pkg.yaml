@@ -1,8 +1,11 @@
-name: sbc-board
+name: sbc-rk3528
 variant: scratch
+shell: /bin/bash
 dependencies:
-  - stage: board
-  - stage: u-boot
+  - stage: radxa-e24c
+  - stage: u-boot-radxa-e24c
+    platform: linux/arm64
+  - stage: rkbin-rk3528
     platform: linux/arm64
   - stage: profiles
 finalize:

@@ -1,0 +1,33 @@
+name: radxa-e24c
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - env:
+      GOPATH: /tmp/go
+    network: default
+    cachePaths:
+      - /.cache/go-build
+      - /tmp/go/pkg
+    prepare:
+      - |
+        cd /pkg/src
+        go mod download
+  - env:
+      GOPATH: /tmp/go
+    cachePaths:
+      - /.cache/go-build
+      - /tmp/go/pkg
+    build:
+      - |
+        cd /pkg/src
+        CGO_ENABLED=0 go build -o ./radxa-e24c .
+    install:
+      - |
+        mkdir -p /rootfs/installers/
+
+        cp /pkg/src/radxa-e24c /rootfs/installers/radxa-e24c
+finalize:
+  - from: /rootfs
+    to: /rootfs
