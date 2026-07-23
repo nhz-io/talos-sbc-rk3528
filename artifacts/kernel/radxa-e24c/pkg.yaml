@@ -39,18 +39,17 @@ steps:
 
         # Copy Talos kernel config and adapt to this kernel version
         cp /pkg/config/config-arm64 .config
+
+        # Enable options that olddefconfig drops when adapting 6.12 config to 7.1
+        scripts/config --enable USERFAULTFD
+        scripts/config --enable STMMAC_ETH
+        scripts/config --enable STMMAC_PLATFORM
+        scripts/config --enable DWMAC_ROCKCHIP
+
         make olddefconfig
 
         # Disable BTF — resolve_btfids from v1.9.0 tools segfaults on 7.1 kernel
         scripts/config --disable DEBUG_INFO_BTF
-
-        # Enable CONFIG_USERFAULTFD — Talos requires vm.unprivileged_userfaultfd sysctl
-        scripts/config --enable USERFAULTFD
-
-        # Enable RK3528 Ethernet (stmmac/dwmac-rk) — not picked up by olddefconfig from 6.12 config
-        scripts/config --enable STMMAC_ETH
-        scripts/config --enable STMMAC_PLATFORM
-        scripts/config --enable DWMAC_ROCKCHIP
       - |
         make -j $(nproc) prepare
     build:
