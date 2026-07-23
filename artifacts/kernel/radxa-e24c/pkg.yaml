@@ -40,6 +40,9 @@ steps:
         # Copy Talos kernel config and adapt to this kernel version
         cp /pkg/config/config-arm64 .config
         make olddefconfig
+
+        # Disable BTF — resolve_btfids from v1.9.0 tools segfaults on 7.1 kernel
+        scripts/config --disable DEBUG_INFO_BTF
       - |
         make -j $(nproc) prepare
     build:
