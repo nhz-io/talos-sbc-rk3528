@@ -3,10 +3,12 @@
 format: v1alpha2
 
 vars:
-  # renovate: datasource=github-tags depName=u-boot/u-boot
-  uboot_version: 2026.01
-  uboot_sha256: b60d5865cefdbc75da8da4156c56c458e00de75a49b80c1a2e58a96e30ad0d54
-  uboot_sha512: b1f988a497c77da60faf89ed33034e9ae58c4cd7f208e5ce451f1372e13540a66289bee4f08ca2f68f105d73f1ceae058b1f713db549edbcc885d9c66bdc4f8b
+  # U-Boot: Kwiboo's rk3528 branch (based on 2026.01, adds Radxa E24C board support)
+  # Contains radxa-e24c-rk3528_defconfig + rk3528-radxa-e24c.dts with GMAC1 + RTL8367RB
+  # Upstream 2026.01 only has generic-rk3528_defconfig (no ethernet, no GMAC)
+  uboot_ref: affa0a9fff215d0d2f601fff50d5193aeb418478
+  uboot_sha256: f4a0e0e9c0bd0bf2111f19045877d91db9666d92a5bf59f3ba600543bfc59c96
+  uboot_sha512: 2ce037c6a5b20f170a33fa98f4a51e3a9628e85301a47e835b9149ebaa74b841bb4eb0515253a17101dcc4184b4f7e6634a8a270e769a9ab1a545bba171d3f02
 
   # renovate: datasource=git-refs versioning=git depName=https://github.com/rockchip-linux/rkbin.git
   rkbin_ref: 74213af1e952c4683d2e35952507133b61394862

@@ -12,8 +12,8 @@ dependencies:
 
 steps:
   - sources:
-      - url: https://ftp.denx.de/pub/u-boot/u-boot-{{ .uboot_version }}.tar.bz2
-        destination: u-boot.tar.bz2
+      - url: https://github.com/Kwiboo/u-boot-rockchip/archive/{{ .uboot_ref }}.tar.gz
+        destination: u-boot.tar.gz
         sha256: "{{ .uboot_sha256 }}"
         sha512: "{{ .uboot_sha512 }}"
     env:
@@ -24,7 +24,8 @@ steps:
     network: default
     prepare:
       - |
-        tar xf u-boot.tar.bz2 --strip-components=1
+        tar -xzf u-boot.tar.gz --strip-components=1
+        rm u-boot.tar.gz
 
         mkdir -p /usr/bin /bin \
           && ln -sf /toolchain/bin/env /usr/bin/env \
@@ -33,7 +34,7 @@ steps:
           && ln -sf /toolchain/bin/bash /bin/bash
 
         pip3 install pyelftools setuptools
-        make generic-rk3528_defconfig
+        make radxa-e24c-rk3528_defconfig
     build:
       - |
         make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" BL31=/libs/rkbin/bl31.elf ROCKCHIP_TPL=/libs/rkbin/ddr.bin
