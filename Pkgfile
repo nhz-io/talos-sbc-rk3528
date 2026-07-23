@@ -15,9 +15,11 @@ vars:
   rkbin_sha256: b565faeab846950262c07e6debbd6519ea9e7f34943dbb305b9cea6b1026e11a
   rkbin_sha512: 15245ca51b010edeae933b53a9aa9398552f2bdd65879d2bbbc147417999947e1d71aa29123302c7486976886ebf59867123abdcc2d77be6f566a96c242a5ca2
 
-  # Kernel: Kwiboo's RK3528 branch (Linux 7.1.0-rc1)
-  kernel_ref: 5f949ab9eb696d282895224e2a7037fb95c4a081
-  kernel_sha256: 76fbd3d7007821098c044ff9b3eefde78b4d6fc343c37806f3e29019ae4a9ea0
-  kernel_sha512: f44fab06f7fef87199a2f6290069f093c7f4c53a4f430313d30e4909bcab17988b9a54d393880642be5901e2e06b426864837456d0b2a273328dc6c4a79889ee
+  # Kernel: Kwiboo's RK3528 branch (Linux 7.0.0-rc6, next-20260403)
+  # Using 7.0-rc6 instead of 7.1-rc1 to avoid timer list corruption panic
+  # (__run_timers LIST_POISON2 on CPU1 during idle with cpufreq active)
+  kernel_ref: edb23886e3eea170a8542b7c8ce0af501627d8fb
+  kernel_sha256: 293b29f042a8c1ea75906210d6eeab774cebe2627937573be9b982f42469cefd
+  kernel_sha512: 6f0972ca431b1ac44da26865094ccea1367785e505dfb624417770dcd10ab4543e44b8a6773edc755a29ddd2b65d89ab78e6ec2089394ef61afdaa2151575493
 labels:
   org.opencontainers.image.source: https://github.com/dev/talos-sbc-rk3528
