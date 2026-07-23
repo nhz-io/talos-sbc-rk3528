@@ -1,6 +1,6 @@
 name: rkbin-rk3528
 variant: scratch
-shell: /bin/bash
+shell: /toolchain/bin/bash
 dependencies:
   - stage: base
 steps:
@@ -11,6 +11,7 @@ steps:
         sha512: "{{ .rkbin_sha512 }}"
     env:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+      PATH: /toolchain/bin:/usr/bin:/bin
     prepare:
       - |
         tar xf rkbin.tar.gz --strip-components=1
@@ -18,8 +19,8 @@ steps:
       - |
         mkdir -p /rootfs/rkbin
 
-        cp bin/rk35/rk3528_bl31_v1.21.elf /rootfs/rkbin/bl31.elf
-        cp bin/rk35/rk3528_ddr_1056MHz_v1.13.bin /rootfs/rkbin/ddr.bin
+        cp bin/rk35/rk3528_bl31_v1.20.elf /rootfs/rkbin/bl31.elf
+        cp bin/rk35/rk3528_ddr_1056MHz_v1.11.bin /rootfs/rkbin/ddr.bin
 finalize:
   - from: /rootfs
     to: /libs

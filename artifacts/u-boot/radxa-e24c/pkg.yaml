@@ -5,7 +5,7 @@
 #     - https://docs.u-boot.org/en/v2025.07/board/rockchip/rockchip.html
 name: u-boot-radxa-e24c
 variant: scratch
-shell: /bin/bash
+shell: /toolchain/bin/bash
 dependencies:
   - stage: base
   - stage: rkbin-rk3528
@@ -18,6 +18,8 @@ steps:
         sha512: "{{ .uboot_sha512 }}"
     env:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+      PATH: /toolchain/bin:/usr/bin:/bin
+      SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
     prepare:
       - |
         tar xf u-boot.tar.bz2 --strip-components=1

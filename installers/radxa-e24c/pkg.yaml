@@ -1,11 +1,14 @@
 name: radxa-e24c
 variant: scratch
-shell: /bin/bash
+shell: /toolchain/bin/bash
 dependencies:
   - stage: base
 steps:
   - env:
       GOPATH: /tmp/go
+      PATH: /toolchain/go/bin:/toolchain/bin:/usr/bin:/bin
+      SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
+      GODEBUG: x509useFallbackRoots=0
     network: default
     cachePaths:
       - /.cache/go-build
@@ -16,6 +19,8 @@ steps:
         go mod download
   - env:
       GOPATH: /tmp/go
+      PATH: /toolchain/go/bin:/toolchain/bin:/usr/bin:/bin
+      SSL_CERT_FILE: /toolchain/etc/ssl/certs/ca-certificates
     cachePaths:
       - /.cache/go-build
       - /tmp/go/pkg
