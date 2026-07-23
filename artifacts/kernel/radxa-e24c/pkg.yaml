@@ -43,6 +43,9 @@ steps:
 
         # Disable BTF — resolve_btfids from v1.9.0 tools segfaults on 7.1 kernel
         scripts/config --disable DEBUG_INFO_BTF
+
+        # Enable CONFIG_USERFAULTFD — Talos requires vm.unprivileged_userfaultfd sysctl
+        scripts/config --enable USERFAULTFD
       - |
         make -j $(nproc) prepare
     build:
