@@ -1,0 +1,71 @@
+# References:
+#   Talos kernel build: https://github.com/siderolabs/pkgs/tree/v1.9.0/kernel
+#   Kwiboo RK3528 branch: https://github.com/Kwiboo/linux-rockchip/tree/next-20260430-rk3528
+name: kernel-radxa-e24c
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: base
+
+steps:
+  - sources:
+      - url: https://github.com/Kwiboo/linux-rockchip/archive/{{ .kernel_ref }}.tar.gz
+        destination: linux.tar.gz
+        sha256: "{{ .kernel_sha256 }}"
+        sha512: "{{ .kernel_sha512 }}"
+    env:
+      ARCH: arm64
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+      PATH: /toolchain/bin:/usr/bin:/bin
+      LD_LIBRARY_PATH: /toolchain/lib
+    prepare:
+      - |
+        tar -xzf linux.tar.gz --strip-components=1
+        rm linux.tar.gz
+
+        mkdir -p /bin /lib /usr/bin /usr/lib/pkgconfig
+        ln -sf /toolchain/bin/bash /bin/bash
+        ln -sf /toolchain/bin/bash /bin/sh
+        ln -sf /toolchain/lib /lib
+        ln -sf /toolchain/bin/env /usr/bin/env
+        ln -sf /toolchain/bin/true /bin/true
+        ln -sf /toolchain/bin/false /bin/false
+        ln -sf /toolchain/bin/pwd /bin/pwd
+        ln -sf /toolchain/bin/awk /usr/bin/awk
+        ln -sf /toolchain/include /usr/include
+
+        # Generate signing key for module signing
+        openssl req -new -x509 -newkey rsa:4096 -keyout certs/signing_key.pem -out certs/signing_key.x509 -nodes -days 36500 -subj "/O=Sidero Labs, Inc./CN=Build time throw-away kernel key" -config /pkg/certs/x509.genkey 2>/dev/null
+
+        # Copy Talos kernel config and adapt to this kernel version
+        cp /pkg/config/config-arm64 .config
+        make olddefconfig
+      - |
+        make -j $(nproc) prepare
+    build:
+      - |
+        make -j $(nproc)
+        make -j $(nproc) modules
+        make -j $(nproc) dtbs
+    install:
+      - |
+        mkdir -p /rootfs/boot /rootfs/artifacts/arm64/dtb/rockchip /rootfs/certs
+
+        cp arch/arm64/boot/vmlinuz.efi /rootfs/boot/vmlinuz
+        cp certs/signing_key.x509 /rootfs/certs/signing_key.x509
+
+        # Copy RK3528 DTBs to artifacts path (matches installer expectations)
+        cd ./arch/arm64/boot/dts/rockchip
+        for f in rk3528-*.dtb; do
+          [ -f "$f" ] && cp "$f" /rootfs/artifacts/arm64/dtb/rockchip/"$f"
+        done
+        cd -
+
+        # Install modules
+        export KERNELRELEASE=$(cat include/config/kernel.release)
+        make -j $(nproc) modules_install DEPMOD=/toolchain/bin/depmod INSTALL_MOD_PATH=/rootfs INSTALL_MOD_STRIP=1
+        depmod -b /rootfs $KERNELRELEASE
+        unlink /rootfs/lib/modules/$KERNELRELEASE/build 2>/dev/null || true
+finalize:
+  - from: /rootfs
+    to: /

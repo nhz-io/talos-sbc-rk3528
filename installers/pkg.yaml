@@ -7,6 +7,8 @@ dependencies:
     platform: linux/arm64
   - stage: rkbin-rk3528
     platform: linux/arm64
+  - stage: kernel-radxa-e24c
+    platform: linux/arm64
   - stage: profiles
 finalize:
   - from: /rootfs
