@@ -33,6 +33,11 @@ steps:
           && ln -sf /toolchain/bin/bash /bin/sh \
           && ln -sf /toolchain/bin/bash /bin/bash
 
+        # Patch DTS: remove RTL8365MB DSA switch node, add GPIO hog for switch reset
+        # This makes the switch operate in dumb bridge mode (all ports L2 bridged)
+        for patch in /pkg/patches/*.patch; do
+          patch -p1 < "$patch"
+        done
         pip3 install pyelftools setuptools
         make radxa-e24c-rk3528_defconfig
     build:

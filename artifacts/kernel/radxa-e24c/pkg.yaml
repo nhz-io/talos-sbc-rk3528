@@ -1,6 +1,6 @@
 # References:
 #   Talos kernel build: https://github.com/siderolabs/pkgs/tree/v1.9.0/kernel
-#   Kwiboo RK3528 branch: https://github.com/Kwiboo/linux-rockchip/tree/next-20260430-rk3528
+#   Kwiboo RK3528 branch: https://github.com/Kwiboo/linux-rockchip/tree/next-20251219-rk3528
 name: kernel-radxa-e24c
 variant: scratch
 shell: /toolchain/bin/bash
@@ -9,8 +9,8 @@ dependencies:
 
 steps:
   - sources:
-      - url: https://github.com/Kwiboo/linux-rockchip/archive/{{ .kernel_ref }}.tar.gz
-        destination: linux.tar.gz
+      - url: https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-{{ .kernel_ref }}.tar.xz
+        destination: linux.tar.xz
         sha256: "{{ .kernel_sha256 }}"
         sha512: "{{ .kernel_sha512 }}"
     env:
@@ -20,8 +20,8 @@ steps:
       LD_LIBRARY_PATH: /toolchain/lib
     prepare:
       - |
-        tar -xzf linux.tar.gz --strip-components=1
-        rm linux.tar.gz
+        tar -xJf linux.tar.xz --strip-components=1
+
 
         mkdir -p /bin /lib /usr/bin /usr/lib/pkgconfig
         ln -sf /toolchain/bin/bash /bin/bash
@@ -34,40 +34,39 @@ steps:
         ln -sf /toolchain/bin/awk /usr/bin/awk
         ln -sf /toolchain/include /usr/include
 
-        # Generate signing key for module signing
-        openssl req -new -x509 -newkey rsa:4096 -keyout certs/signing_key.pem -out certs/signing_key.x509 -nodes -days 36500 -subj "/O=Sidero Labs, Inc./CN=Build time throw-away kernel key" -config /pkg/certs/x509.genkey 2>/dev/null
 
-        # Copy Talos kernel config and adapt to this kernel version
+
+        # Start from Talos config-arm64 (same config as stock Talos v1.13.7 kernel)
+        # All RK3528 SoC drivers included: ROCKCHIP_PM_DOMAINS, GPIO, SCMI, etc.
         cp /pkg/config/config-arm64 .config
-
-        # Enable options that olddefconfig drops when adapting 6.12 config to 7.x
+        # Enable options defconfig lacks or Talos config sets as module
         scripts/config --enable USERFAULTFD
-        scripts/config --enable STMMAC_ETH
-        scripts/config --enable STMMAC_PLATFORM
-        scripts/config --enable DWMAC_ROCKCHIP
+        scripts/config --set-val STMMAC_ETH y
+        scripts/config --set-val STMMAC_PLATFORM y
+        scripts/config --set-val DWMAC_ROCKCHIP y
+        scripts/config --enable OVERLAY_FS
+        scripts/config --enable EFI
+        scripts/config --enable EFI_STUB
+        scripts/config --enable EFI_ZBOOT
 
-        # Talos config sets PREEMPT_NONE but ARM64 7.x requires ARCH_NO_PREEMPT
-        # for that, which isn't set. olddefconfig picks PREEMPT_LAZY (new 7.x
-        # default) which has a timer list corruption bug (__run_timers
-        # LIST_POISON2). Match defconfig: use PREEMPT (full preemption) which
-        # is proven to work on RK3528 with Kwiboo's branch.
-        scripts/config --disable PREEMPT_NONE
-        scripts/config --enable PREEMPT
-        scripts/config --disable PREEMPT_VOLUNTARY
-        scripts/config --disable PREEMPT_LAZY
+        # RTL8365MB switch driver — required for RTL8367RB on E24C
+        # The switch provides the RGMII RX clock that stmmac needs for DMA reset
+        scripts/config --enable NET_DSA_REALTEK
+        scripts/config --enable NET_DSA_REALTEK_MDIO
+        scripts/config --set-val NET_DSA_REALTEK_RTL8365MB y
+        scripts/config --enable NET_DSA_TAG_RTL8_4
+
         make olddefconfig
 
-        # Disable BTF — resolve_btfids from v1.9.0 tools segfaults on 7.1 kernel
-        scripts/config --disable DEBUG_INFO_BTF
+        # Re-enable STMMAC/DWMAC after olddefconfig (it may reset =m)
+        scripts/config --set-val STMMAC_ETH y
+        scripts/config --set-val STMMAC_PLATFORM y
+        scripts/config --set-val DWMAC_ROCKCHIP y
 
-        # Disable KFENCE and DEBUG_LIST — these Talos hardening options trigger
-        # a timer use-after-free crash in __run_timers at ~3s on RK3528.
-        # KFence poisons freed slab objects; DEBUG_LIST poisons list_del'd
-        # entries. The combination catches a real timer UAF bug that defconfig
-        # (no hardening) silently tolerates. Disable for bring-up; re-enable
-        # after the underlying bug is fixed or the timer UAF is root-caused.
-        scripts/config --disable KFENCE
-        scripts/config --disable DEBUG_LIST
+        # Re-enable RTL8365MB after olddefconfig (may reset to =m or disabled)
+        scripts/config --set-val NET_DSA_REALTEK_RTL8365MB y
+        scripts/config --enable NET_DSA_REALTEK_MDIO
+        scripts/config --enable NET_DSA_TAG_RTL8_4
       - |
         make -j $(nproc) prepare
     build:
@@ -88,6 +87,9 @@ steps:
           [ -f "$f" ] && cp "$f" /rootfs/artifacts/arm64/dtb/rockchip/"$f"
         done
         cd -
+
+        # Copy pre-compiled E24C DTB (not in mainline 6.18 — from Kwiboo's 6.19 build)
+        cp /pkg/files/rk3528-radxa-e24c.dtb /rootfs/artifacts/arm64/dtb/rockchip/rk3528-radxa-e24c.dtb
 
         # Install modules
         export KERNELRELEASE=$(cat include/config/kernel.release)

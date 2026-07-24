@@ -15,11 +15,12 @@ vars:
   rkbin_sha256: b565faeab846950262c07e6debbd6519ea9e7f34943dbb305b9cea6b1026e11a
   rkbin_sha512: 15245ca51b010edeae933b53a9aa9398552f2bdd65879d2bbbc147417999947e1d71aa29123302c7486976886ebf59867123abdcc2d77be6f566a96c242a5ca2
 
-  # Kernel: Kwiboo's RK3528 branch (Linux 7.0.0-rc6, next-20260403)
-  # Using 7.0-rc6 instead of 7.1-rc1 to avoid timer list corruption panic
-  # (__run_timers LIST_POISON2 on CPU1 during idle with cpufreq active)
-  kernel_ref: edb23886e3eea170a8542b7c8ce0af501627d8fb
-  kernel_sha256: 293b29f042a8c1ea75906210d6eeab774cebe2627937573be9b982f42469cefd
-  kernel_sha512: 6f0972ca431b1ac44da26865094ccea1367785e505dfb624417770dcd10ab4543e44b8a6773edc755a29ddd2b65d89ab78e6ec2089394ef61afdaa2151575493
+  # Kernel: Stock Linux 6.18.39 (same as Talos v1.13.7)
+  # Known-good baseline: stock Talos kernel boots without SCMI/power domain crashes.
+  # 6.19-rc1 (Kwiboo next-20251219-rk3528) crashes in genpd_power_off_work_fn.
+  # E24C DTB comes from U-Boot (embedded), not kernel — so no Kwiboo kernel needed.
+  kernel_ref: 6.18.39
+  kernel_sha256: a7a7e3d2ae9d95e74197223a8d4eb5f6be7aac21b6e6de27e9685d001c1f8cb0
+  kernel_sha512: 36694e9fd18f59887a400ae4ec46b1d0b9a4eef49ca327d879259677062d75ad162d6b5e37a2d700c5a41c98a1ca23ef0f410afb44c871f6314c1b246e51a8f5
 labels:
   org.opencontainers.image.source: https://github.com/dev/talos-sbc-rk3528
