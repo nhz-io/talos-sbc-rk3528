@@ -59,6 +59,15 @@ steps:
 
         # Disable BTF — resolve_btfids from v1.9.0 tools segfaults on 7.1 kernel
         scripts/config --disable DEBUG_INFO_BTF
+
+        # Disable KFENCE and DEBUG_LIST — these Talos hardening options trigger
+        # a timer use-after-free crash in __run_timers at ~3s on RK3528.
+        # KFence poisons freed slab objects; DEBUG_LIST poisons list_del'd
+        # entries. The combination catches a real timer UAF bug that defconfig
+        # (no hardening) silently tolerates. Disable for bring-up; re-enable
+        # after the underlying bug is fixed or the timer UAF is root-caused.
+        scripts/config --disable KFENCE
+        scripts/config --disable DEBUG_LIST
       - |
         make -j $(nproc) prepare
     build:
