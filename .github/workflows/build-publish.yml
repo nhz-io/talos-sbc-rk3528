@@ -1,0 +1,90 @@
+name: Build & Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (no-op on arm64 host, kept for parity)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start local registry sidecar
+        run: |
+          docker run -d --name registry --network host \
+            -p 5000:5000 \
+            registry:2
+
+      - name: Setup Talos source fork
+        run: |
+          bash scripts/setup-talos-src.sh /tmp/talos-src-v1.13.7
+
+      - name: Build metal image
+        env:
+          BUILD_TAG: ${{ github.ref_name }}
+          PROJECT_DIR: ${{ github.workspace }}
+          TALOS_SRC_DIR: /tmp/talos-src-v1.13.7
+          REGISTRY: localhost:5000
+          IMAGER_TAG: ghcr.io/nhz-io/imager-rk3528:v1.13.7-v12
+        run: |
+          bash build.sh
+
+      - name: Upload metal image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-arm64-${{ github.ref_name }}
+          path: /tmp/talos-src-v1.13.7/_out/metal-arm64-${{ github.ref_name }}.raw.zst
+          retention-days: 90
+
+      - name: Push overlay image to ghcr.io
+        run: |
+          docker pull localhost:5000/talos-sbc-rk3528:${{ github.ref_name }}
+          docker tag localhost:5000/talos-sbc-rk3528:${{ github.ref_name }} \
+                     ghcr.io/nhz-io/talos-sbc-rk3528:${{ github.ref_name }}
+          docker push ghcr.io/nhz-io/talos-sbc-rk3528:${{ github.ref_name }}
+
+      - name: Push installer image to ghcr.io
+        run: |
+          docker tag ghcr.io/nhz-io/imager-rk3528:v1.13.7-v12 \
+                     ghcr.io/nhz-io/talos-rk3528:v1.13.7-radxa-e24c-${{ github.ref_name }}
+          docker push ghcr.io/nhz-io/talos-rk3528:v1.13.7-radxa-e24c-${{ github.ref_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: metal-arm64-${{ github.ref_name }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: metal-arm64-${{ github.ref_name }}.raw.zst
+          generate_release_notes: true
+          draft: false
+          prerelease: false

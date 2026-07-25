@@ -1,0 +1,72 @@
+name: Mirror Sidero Drift Check
+
+on:
+  schedule:
+    # Every Monday 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'Specific image to check (e.g. bldr). Leave empty to check all.'
+        required: false
+        default: ''
+
+permissions:
+  issues: write
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: ghcr.io/siderolabs/bldr
+            mirror: ghcr.io/nhz-io/sidero-bldr
+            tag: v0.5.6
+          - source: ghcr.io/siderolabs/toolchain
+            mirror: ghcr.io/nhz-io/sidero-toolchain
+            tag: v1.13.0
+          - source: ghcr.io/siderolabs/tools
+            mirror: ghcr.io/nhz-io/sidero-tools
+            tag: v1.13.0-8-gc2844e6
+    steps:
+      - name: Login to ghcr.io (read-only)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare digests
+        id: compare
+        run: |
+          set -uo pipefail
+          SOURCE="${{ matrix.source }}:${{ matrix.tag }}"
+          MIRROR="${{ matrix.mirror }}:${{ matrix.tag }}"
+
+          echo "Source: $SOURCE"
+          echo "Mirror: $MIRROR"
+
+          SOURCE_DIGEST=$(docker buildx imagetools inspect "$SOURCE" --format '{{range .Manifest.Manifests}}{{.Digest}} {{end}}' 2>/dev/null | tr -d ' ' | sort)
+          MIRROR_DIGEST=$(docker buildx imagetools inspect "$MIRROR" --format '{{range .Manifest.Manifests}}{{.Digest}} {{end}}' 2>/dev/null | tr -d ' ' | sort)
+
+          echo "Source digest(s): $SOURCE_DIGEST"
+          echo "Mirror digest(s): $MIRROR_DIGEST"
+
+          if [ "$SOURCE_DIGEST" != "$MIRROR_DIGEST" ]; then
+            echo "drift=true" >> $GITHUB_OUTPUT
+            echo "::warning::Drift detected for $SOURCE"
+          else
+            echo "drift=false" >> $GITHUB_OUTPUT
+            echo "OK: $MIRROR matches source"
+          fi
+
+      - name: Open issue if drift detected
+        if: steps.compare.outputs.drift == 'true'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Sidero image drift: ${{ matrix.source }}:${{ matrix.tag }}"
+          content-filepath: /dev/stdin
+          labels: drift,sidero
+          assignees: nhz-io
