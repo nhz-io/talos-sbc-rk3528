@@ -7,13 +7,19 @@ vars:
   # Contains radxa-e24c-rk3528_defconfig + rk3528-radxa-e24c.dts with GMAC1 + RTL8367RB
   # Upstream 2026.01 only has generic-rk3528_defconfig (no ethernet, no GMAC)
   uboot_ref: affa0a9fff215d0d2f601fff50d5193aeb418478
-  uboot_sha256: f4a0e0e9c0bd0bf2111f19045877d91db9666d92a5bf59f3ba600543bfc59c96
-  uboot_sha512: 2ce037c6a5b20f170a33fa98f4a51e3a9628e85301a47e835b9149ebaa74b841bb4eb0515253a17101dcc4184b4f7e6634a8a270e769a9ab1a545bba171d3f02
+  # SHA256/SHA512 differ from upstream tarball because fork repo name
+  # ('kwiboo-u-boot-rockchip' vs upstream 'u-boot-rockchip') changes the
+  # top-level directory prefix inside the archive.
+  uboot_sha256: ccc50d2f35281062fa63f7d70af41b2d53ac3bed4f03d93a3d43794b5a53ee94
+  uboot_sha512: 56787eb72dc51a22ed95d41f353ab5b45f7931e6a601c715d2cecadb014d0b10358046b2a1b67107f2f3e76bea7ed71acff9d1a8d89d96aa3aadf124b8daf61a
 
   # renovate: datasource=git-refs versioning=git depName=https://github.com/rockchip-linux/rkbin.git
   rkbin_ref: 74213af1e952c4683d2e35952507133b61394862
-  rkbin_sha256: b565faeab846950262c07e6debbd6519ea9e7f34943dbb305b9cea6b1026e11a
-  rkbin_sha512: 15245ca51b010edeae933b53a9aa9398552f2bdd65879d2bbbc147417999947e1d71aa29123302c7486976886ebf59867123abdcc2d77be6f566a96c242a5ca2
+  # SHA256/SHA512 differ from upstream tarball because fork repo name
+  # ('rockchip-rkbin' vs upstream 'rkbin') changes the top-level directory
+  # prefix inside the archive.
+  rkbin_sha256: cbfd286911d1b0c5db7a6ee7eeda299cd74c459ec0c3ca36a37b3a74d9c3631c
+  rkbin_sha512: 695cd9c761df92c126094ac4cee1604a74adede893fc6cdce7e470e9b0e35c2cca5dbffd270d1c475f3467c1226c1a949e08ba8513c09f7ed351397acb366b2a
 
   # Kernel: Stock Linux 6.18.39 (same as Talos v1.13.7)
   # Known-good baseline: stock Talos kernel boots without SCMI/power domain crashes.
