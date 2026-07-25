@@ -1,0 +1,92 @@
+--- a/drivers/net/dsa/realtek/rtl8365mb.c
++++ b/drivers/net/dsa/realtek/rtl8365mb.c
+@@ -859,10 +859,8 @@
+ 	mb = priv->chip_data;
+ 	cpu = &mb->cpu;
+ 
+-	if (cpu->position == RTL8365MB_CPU_POS_BEFORE_CRC)
+-		return DSA_TAG_PROTO_RTL8_4T;
+-
+-	return DSA_TAG_PROTO_RTL8_4;
++	/* Dumb switch mode: no DSA tag insertion by switch hardware. */
++	return DSA_TAG_PROTO_NONE;
+ }
+ 
+ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
+@@ -1172,24 +1170,11 @@
+ 	enum rtl8365mb_stp_state val;
+ 	int msti = 0;
+ 
+-	switch (state) {
+-	case BR_STATE_DISABLED:
+-		val = RTL8365MB_STP_STATE_DISABLED;
+-		break;
+-	case BR_STATE_BLOCKING:
+-	case BR_STATE_LISTENING:
+-		val = RTL8365MB_STP_STATE_BLOCKING;
+-		break;
+-	case BR_STATE_LEARNING:
+-		val = RTL8365MB_STP_STATE_LEARNING;
+-		break;
+-	case BR_STATE_FORWARDING:
+-		val = RTL8365MB_STP_STATE_FORWARDING;
+-		break;
+-	default:
+-		dev_err(priv->dev, "invalid STP state: %u\n", state);
+-		return;
+-	}
++	/* Dumb switch mode: ALWAYS FORWARDING regardless of DSA request.
++	 * DSA sets user ports to DISABLED when DOWN, but we want all
++	 * ports forwarding at hardware L2 at all times.
++	 */
++	val = RTL8365MB_STP_STATE_FORWARDING;
+ 
+ 	regmap_update_bits(priv->map, RTL8365MB_MSTI_CTRL_REG(msti, port),
+ 			   RTL8365MB_MSTI_CTRL_PORT_STATE_MASK(port),
+@@ -1872,6 +1857,9 @@
+ 	mb = priv->chip_data;
+ 	cpu = &mb->cpu;
+ 
++	if (proto == DSA_TAG_PROTO_NONE)
++		return 0;
++
+ 	switch (proto) {
+ 	case DSA_TAG_PROTO_RTL8_4:
+ 		cpu->format = RTL8365MB_CPU_FORMAT_8BYTES;
+@@ -1990,21 +1978,18 @@
+ 		if (dsa_is_unused_port(ds, i))
+ 			continue;
+ 
+-		/* Forward only to the CPU */
+-		ret = rtl8365mb_port_set_isolation(priv, i, cpu->mask);
++		/* Dumb switch: forward to ALL ports (hardware L2 bridge). */
++		ret = rtl8365mb_port_set_isolation(priv, i, RTL8365MB_PORT_ISOLATION_MASK);
+ 		if (ret)
+ 			goto out_teardown_irq;
+ 
+-		/* Disable learning */
+-		ret = rtl8365mb_port_set_learning(priv, i, false);
++		/* Enable learning for proper L2 unicast forwarding */
++		ret = rtl8365mb_port_set_learning(priv, i, true);
+ 		if (ret)
+ 			goto out_teardown_irq;
+ 
+-		/* Set the initial STP state of all ports to DISABLED, otherwise
+-		 * ports will still forward frames to the CPU despite being
+-		 * administratively down by default.
+-		 */
+-		rtl8365mb_port_stp_state_set(ds, i, BR_STATE_DISABLED);
++		/* Dumb switch: FORWARDING on all ports (overridden to FORWARDING anyway) */
++		rtl8365mb_port_stp_state_set(ds, i, BR_STATE_FORWARDING);
+ 
+ 		/* Set up per-port private data */
+ 		p->priv = priv;
+@@ -2104,7 +2089,7 @@
+ 	priv->num_ports = RTL8365MB_MAX_NUM_PORTS;
+ 	mb->priv = priv;
+ 	mb->cpu.trap_port = RTL8365MB_MAX_NUM_PORTS;
+-	mb->cpu.insert = RTL8365MB_CPU_INSERT_TO_ALL;
++	mb->cpu.insert = RTL8365MB_CPU_INSERT_TO_NONE;
+ 	mb->cpu.position = RTL8365MB_CPU_POS_AFTER_SA;
+ 	mb->cpu.rx_length = RTL8365MB_CPU_RXLEN_64BYTES;
+ 	mb->cpu.format = RTL8365MB_CPU_FORMAT_8BYTES;

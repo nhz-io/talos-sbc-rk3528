@@ -34,8 +34,10 @@ steps:
         ln -sf /toolchain/bin/awk /usr/bin/awk
         ln -sf /toolchain/include /usr/include
 
-
-
+        # Apply kernel patches
+        for patch in /pkg/patches/*.patch; do
+          [ -f "$patch" ] && patch -p1 < "$patch"
+        done
         # Start from Talos config-arm64 (same config as stock Talos v1.13.7 kernel)
         # All RK3528 SoC drivers included: ROCKCHIP_PM_DOMAINS, GPIO, SCMI, etc.
         cp /pkg/config/config-arm64 .config
@@ -63,10 +65,13 @@ steps:
         scripts/config --set-val STMMAC_PLATFORM y
         scripts/config --set-val DWMAC_ROCKCHIP y
 
-        # Re-enable RTL8365MB after olddefconfig (may reset to =m or disabled)
-        scripts/config --set-val NET_DSA_REALTEK_RTL8365MB y
+        # Re-enable RTL8365MB after olddefconfig (olddefconfig drops the
+        # parent NET_DSA_REALTEK menuconfig, which orphans the sub-options).
+        # Must re-enable parent FIRST, then children.
+        scripts/config --enable NET_DSA_REALTEK
         scripts/config --enable NET_DSA_REALTEK_MDIO
-        scripts/config --enable NET_DSA_TAG_RTL8_4
+        scripts/config --set-val NET_DSA_REALTEK_RTL8365MB y
+        scripts/config --enable NET_DSA_TAG_NONE
       - |
         make -j $(nproc) prepare
     build:

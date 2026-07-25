@@ -33,8 +33,8 @@ steps:
           && ln -sf /toolchain/bin/bash /bin/sh \
           && ln -sf /toolchain/bin/bash /bin/bash
 
-        # Patch DTS: remove RTL8365MB DSA switch node, add GPIO hog for switch reset
-        # This makes the switch operate in dumb bridge mode (all ports L2 bridged)
+        # Apply patches if any exist (empty dir = stock build)
+        shopt -s nullglob
         for patch in /pkg/patches/*.patch; do
           patch -p1 < "$patch"
         done
@@ -46,6 +46,7 @@ steps:
     install:
       - |
         mkdir -p /rootfs/artifacts/arm64/u-boot/radxa-e24c
+        cp -v .config /rootfs/artifacts/arm64/u-boot/radxa-e24c/u-boot.config
         cp -v -t /rootfs/artifacts/arm64/u-boot/radxa-e24c u-boot-rockchip.bin
 finalize:
   - from: /rootfs
