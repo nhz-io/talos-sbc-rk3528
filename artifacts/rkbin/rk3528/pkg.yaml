@@ -5,7 +5,7 @@ dependencies:
   - stage: base
 steps:
   - sources:
-      - url: https://github.com/rockchip-linux/rkbin/archive/{{ .rkbin_ref }}.tar.gz
+      - url: https://github.com/nhz-io/rockchip-rkbin/archive/{{ .rkbin_ref }}.tar.gz
         destination: rkbin.tar.gz
         sha256: "{{ .rkbin_sha256 }}"
         sha512: "{{ .rkbin_sha512 }}"

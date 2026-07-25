@@ -1,4 +1,4 @@
-# syntax = ghcr.io/siderolabs/bldr:v0.5.5
+# syntax = ghcr.io/nhz-io/sidero-bldr:v0.5.6
 
 format: v1alpha2
 
@@ -23,4 +23,4 @@ vars:
   kernel_sha256: a7a7e3d2ae9d95e74197223a8d4eb5f6be7aac21b6e6de27e9685d001c1f8cb0
   kernel_sha512: 36694e9fd18f59887a400ae4ec46b1d0b9a4eef49ca327d879259677062d75ad162d6b5e37a2d700c5a41c98a1ca23ef0f410afb44c871f6314c1b246e51a8f5
 labels:
-  org.opencontainers.image.source: https://github.com/dev/talos-sbc-rk3528
+  org.opencontainers.image.source: https://github.com/nhz-io/talos-sbc-rk3528

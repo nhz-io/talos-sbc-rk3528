@@ -1,6 +1,6 @@
 #!/bin/bash
 # RK3528 build pipeline — cache-safe, versioned, verified
-# Usage: BUILD_TAG=v19 bash ~/talos-sbc-rk3528/build.sh
+# Usage: BUILD_TAG=v30 bash build.sh
 #
 # This script ALWAYS:
 # 1. Rebuilds U-Boot from scratch (--no-cache) with current patches
@@ -9,27 +9,44 @@
 # 4. dd's the correct binary into the metal image
 # 5. Verifies IDENT_STRING is present in the final raw image before compressing
 #
-# The IDENT_STRING appears in BOTH:
-# - U-Boot proper banner (if console works): "U-Boot 2026.01 ... -rk3528-v19"
-# - SPL banner (via spl_display_print): appended after standard SPL banner
+# Path-agnostic: every path/prefix/tag is an env var with a sensible default.
+# Defaults match the developer's local setup; CI overrides via env.
 
 set -eou pipefail
 
-BUILD_TAG="${BUILD_TAG:-v19}"
-IMAGE_PREFIX="ghcr.io/nhz-io"
-REGISTRY="localhost:5000"
-IDENT_STRING="${BUILD_TAG}"  # Used for image tagging only, not U-Boot IDENT_STRING
+# --- Paths / registry / version pins (all overridable via env) ---
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
+TALOS_SRC_DIR="${TALOS_SRC_DIR:-$HOME/talos-src-v1.13.7}"
+REGISTRY="${REGISTRY:-localhost:5000}"
+
+# --- Sidero image refs (mirrored to ghcr.io/nhz-io/sidero-* by Phase C) ---
+PKGS_PREFIX="${PKGS_PREFIX:-ghcr.io/siderolabs}"
+PKGS="${PKGS:-v1.9.0}"
+TOOLS_PREFIX="${TOOLS_PREFIX:-ghcr.io/siderolabs}"
+TOOLS="${TOOLS:-v1.9.0}"
+BLDR_IMAGE="${BLDR_IMAGE:-ghcr.io/nhz-io/sidero-bldr:v0.5.6}"
+
+# --- Build tag / image naming ---
+BUILD_TAG="${BUILD_TAG:-v30}"
+IMAGE_PREFIX="${IMAGE_PREFIX:-ghcr.io/nhz-io}"
+
+# --- Imager (rebuilt from nhz-io/sidero-talos fork; falls back to existing tag) ---
+IMAGER_TAG="${IMAGER_TAG:-${IMAGE_PREFIX}/imager-rk3528:v1.13.7-v12}"
+INSTALLER_TAG="${REGISTRY}/talos-rk3528:v1.13.7-radxa-e24c-${BUILD_TAG}"
 
 echo "============================================"
 echo "RK3528 build pipeline — ${BUILD_TAG}"
-echo "IDENT_STRING: ${IDENT_STRING}"
+echo "PROJECT_DIR:    ${PROJECT_DIR}"
+echo "TALOS_SRC_DIR:  ${TALOS_SRC_DIR}"
+echo "REGISTRY:       ${REGISTRY}"
+echo "PKGS:           ${PKGS_PREFIX}:${PKGS}"
+echo "TOOLS:          ${TOOLS_PREFIX}:${TOOLS}"
+echo "BLDR:           ${BLDR_IMAGE}"
 echo "============================================"
 
-cd ~/talos-sbc-rk3528
+cd "${PROJECT_DIR}"
 
-# --- Step 0: No defconfig patch needed — using stock Kwiboo U-Boot ---
-
-# Source date epoch for reproducible builds
+# Source date epoch for reproducible builds (first commit timestamp)
 SOURCE_DATE_EPOCH=$(git log --format=%ct $(git rev-list --max-parents=0 HEAD))
 
 # --- Step 1: Build U-Boot from scratch (--no-cache, always) ---
@@ -41,8 +58,8 @@ docker buildx build --no-cache \
   --provenance=false --sbom=false --progress=auto \
   --platform=linux/arm64 \
   --build-arg=SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH}" \
-  --build-arg=PKGS_PREFIX=ghcr.io/siderolabs --build-arg=PKGS=v1.9.0 \
-  --build-arg=TOOLS_PREFIX=ghcr.io/siderolabs --build-arg=TOOLS=v1.9.0 \
+  --build-arg=PKGS_PREFIX="${PKGS_PREFIX}" --build-arg=PKGS="${PKGS}" \
+  --build-arg=TOOLS_PREFIX="${TOOLS_PREFIX}" --build-arg=TOOLS="${TOOLS}" \
   --tag="${UBOOT_TAG}" --load .
 
 # --- Step 2: Extract U-Boot binary from the build ---
@@ -70,11 +87,11 @@ docker buildx build --no-cache \
   --provenance=false --sbom=false --progress=auto \
   --platform=linux/arm64 \
   --build-arg=SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH}" \
-  --build-arg=PKGS_PREFIX=ghcr.io/siderolabs --build-arg=PKGS=v1.9.0 \
-  --build-arg=TOOLS_PREFIX=ghcr.io/siderolabs --build-arg=TOOLS=v1.9.0 \
+  --build-arg=PKGS_PREFIX="${PKGS_PREFIX}" --build-arg=PKGS="${PKGS}" \
+  --build-arg=TOOLS_PREFIX="${TOOLS_PREFIX}" --build-arg=TOOLS="${TOOLS}" \
   --tag="${OVERLAY_TAG}" --load .
 
-# Push overlay to local registry
+# Push overlay to local (or CI) registry
 docker tag "${OVERLAY_TAG}" "${REGISTRY}/talos-sbc-rk3528:${BUILD_TAG}"
 docker push "${REGISTRY}/talos-sbc-rk3528:${BUILD_TAG}"
 
@@ -90,31 +107,28 @@ OUR_MD5=$(md5sum "${UBOOT_BIN}" | awk '{print $1}')
 echo "Overlay U-Boot MD5: ${OVERLAY_UBOOT_MD5}"
 echo "Our U-Boot MD5:     ${OUR_MD5}"
 if [ "${OVERLAY_UBOOT_MD5}" != "${OUR_MD5}" ]; then
-  echo "WARNING: Overlay U-Boot does not match! Will dd our binary."
-else
-  echo "OK: Overlay U-Boot matches our separately-built binary"
+  echo "FATAL: U-Boot MD5 mismatch — overlay contains different U-Boot than we built"
+  exit 1
 fi
 
 # --- Step 6: Build imager + installer + metal image ---
 echo ""
 echo "=== Step 6: Building imager + installer + metal image ==="
-cd ~/talos-src-v1.13.7
+mkdir -p "${PROJECT_DIR}/_out" "${TALOS_SRC_DIR}/_out"
 
-INSTALLER_TAG="${REGISTRY}/talos-rk3528:v1.13.7-radxa-e24c-${BUILD_TAG}"
-
-# Reuse existing imager image
+# Use the imager image (rebuild via scripts/rebuild-imager.sh if needed)
 docker run --rm --privileged --network host -v /dev:/dev -v /tmp:/tmp \
-  -v ~/talos-sbc-rk3528/_out:/out \
+  -v "${PROJECT_DIR}/_out:/out" \
   -e PLATFORM=container \
-  ghcr.io/nhz-io/imager-rk3528:v1.13.7-v12 \
+  "${IMAGER_TAG}" \
   installer --arch arm64 \
   --overlay-image "${REGISTRY}/talos-sbc-rk3528:${BUILD_TAG}" \
   --insecure --overlay-name radxa-e24c \
-  --base-installer-image "${REGISTRY}/imager-rk3528:v1.13.7-v12" \
+  --base-installer-image "${IMAGER_TAG}" \
   --output /out 2>&1 | tail -3
 
-docker load -i ~/talos-sbc-rk3528/_out/installer-arm64.tar 2>&1 | tail -1
-docker tag "${REGISTRY}/imager-rk3528:v1.13.7-v12" "${INSTALLER_TAG}"
+docker load -i "${PROJECT_DIR}/_out/installer-arm64.tar" 2>&1 | tail -1
+docker tag "${IMAGER_TAG}" "${INSTALLER_TAG}"
 docker push "${INSTALLER_TAG}" 2>&1 | tail -1
 
 # Build metal image
@@ -136,7 +150,7 @@ output:
   imageOptions:
     diskSize: 1306525696
     diskFormat: raw' | docker run --rm -i --privileged --network host -v /dev:/dev -v /tmp:/tmp \
-  -v ~/talos-src-v1.13.7/_out:/out \
+  -v "${TALOS_SRC_DIR}/_out:/out" \
   "${INSTALLER_TAG}" \
   - --output /out 2>&1 | tail -5
 
@@ -144,9 +158,9 @@ output:
 echo ""
 echo "=== Step 7: Post-processing ==="
 RAW_FILE="/tmp/metal-arm64-${BUILD_TAG}.raw"
-ZST_FILE="${HOME}/talos-src-v1.13.7/_out/metal-arm64-${BUILD_TAG}.raw.zst"
+ZST_FILE="${TALOS_SRC_DIR}/_out/metal-arm64-${BUILD_TAG}.raw.zst"
 
-zstd -d ~/talos-src-v1.13.7/_out/metal-arm64.raw.zst -o "${RAW_FILE}" -f
+zstd -d "${TALOS_SRC_DIR}/_out/metal-arm64.raw.zst" -o "${RAW_FILE}" -f
 
 # Always dd our separately-built and verified U-Boot binary
 dd if="${UBOOT_BIN}" of="${RAW_FILE}" bs=512 seek=64 conv=notrunc
@@ -171,10 +185,8 @@ echo ""
 echo "============================================"
 echo "BUILD COMPLETE: ${BUILD_TAG}"
 echo "============================================"
-echo "Image: ${ZST_FILE} ($(ls -lh ${ZST_FILE} | awk '{print $5}'))"
-echo "U-Boot: ${UBOOT_TAG}"
-echo "Overlay: ${OVERLAY_TAG}"
+echo "Image:     ${ZST_FILE} ($(ls -lh ${ZST_FILE} | awk '{print $5}'))"
+echo "U-Boot:    ${UBOOT_TAG}"
+echo "Overlay:   ${OVERLAY_TAG}"
 echo "Installer: ${INSTALLER_TAG}"
-echo ""
-echo "Stock Kwiboo U-Boot (no IDENT_STRING)."
 echo "============================================"
