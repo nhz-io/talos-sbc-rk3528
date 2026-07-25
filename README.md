@@ -76,15 +76,30 @@ docker buildx imagetools create \
 
 This repo is consumed as a submodule of
 [`nhz-io/talos-workspace`](https://github.com/nhz-io/talos-workspace). The
-canonical clone paths are:
+canonical workspace tree is:
 
 ```
-~/talos/                          # talos-workspace (parent)
-├── talos-sbc-rk3528/             # this repo
-└── sidero-talos/                 # Talos source fork (default TALOS_SRC_DIR)
+~/talos/                                  # talos-workspace (parent, private)
+├── talos-sbc-rk3528/                     # this repo (public)
+│   ├── kwiboo-u-boot-rockchip/           # submodule, pinned @ affa0a9
+│   ├── rockchip-rkbin/                   # submodule, pinned @ 74213af
+│   ├── sidero-bldr/                      # submodule, pinned @ v0.5.6
+│   ├── sidero-toolchain/                 # submodule, pinned @ v1.13.0
+│   ├── sidero-tools/                     # submodule, pinned @ v1.13.0
+│   └── sidero-pkgs/                      # submodule, pinned @ v1.13.0
+├── sidero-talos/                         # working repo (branch v1.13.7-rk3528, default TALOS_SRC_DIR)
+└── talos-local-cluster/                  # working repo (private, SOPS-encrypted)
 ```
 
-To clone the full workspace with submodules:
+The 6 source forks live under this repo (not the workspace parent) because
+they are build inputs consumed only by `talos-sbc-rk3528`. **The build does
+not read from these submodules** — it fetches tarballs by SHA at build time
+(see `Pkgfile` and `artifacts/*/pkg.yaml`). The submodules exist purely for
+local browsing / IDE cross-reference. To bump a pin, update both the
+submodule pointer and the matching `vars.*_ref` / `*_sha256` / `*_sha512`
+in `Pkgfile`.
+
+To clone the full workspace with all nested submodules:
 
 ```bash
 git clone --recurse-submodules git@github.com:nhz-io/talos-workspace.git ~/talos
@@ -93,7 +108,7 @@ git clone --recurse-submodules git@github.com:nhz-io/talos-workspace.git ~/talos
 ### Standalone clone (without the workspace)
 
 ```bash
-git clone git@github.com:nhz-io/talos-sbc-rk3528.git ~/talos-sbc-rk3528
+git clone --recurse-submodules git@github.com:nhz-io/talos-sbc-rk3528.git ~/talos-sbc-rk3528
 ./scripts/setup-talos-src.sh   # clones sidero-talos to ~/talos/sidero-talos by default
 
 # Optional: rebuild imager from fork (default: reuses existing published tag)
@@ -151,12 +166,19 @@ talos-sbc-rk3528/
 │   └── u-boot/radxa-e24c/pkg.yaml   # U-Boot build stage (Kwiboo fork)
 ├── installers/radxa-e24c/
 │   ├── pkg.yaml
-│   └── src/main.go                 # Installer logic (DTB inject, etc.)
+│   └── src/main.go                  # Installer logic (DTB inject, etc.)
 ├── internal/base/pkg.yaml           # Base layer
 ├── profiles/radxa-e24c/             # SBC profile
-└── scripts/
-    ├── setup-talos-src.sh           # Idempotent fork clone
-    └── rebuild-imager.sh            # Rebuilds imager from talos fork source
+├── scripts/
+│   ├── setup-talos-src.sh           # Idempotent fork clone
+│   └── rebuild-imager.sh            # Rebuilds imager from talos fork source
+└── (submodules — build inputs, pinned, browse-only)
+    ├── kwiboo-u-boot-rockchip/      # @ affa0a9 — U-Boot source
+    ├── rockchip-rkbin/              # @ 74213af — DDR init + BL31 blobs
+    ├── sidero-bldr/                 # @ v0.5.6  — Sidero build frontend
+    ├── sidero-toolchain/            # @ v1.13.0 — binutils+gcc+musl+golang
+    ├── sidero-tools/                # @ v1.13.0 — dtc, elfutils
+    └── sidero-pkgs/                 # @ v1.13.0 — Sidero package sources
 ```
 
 ## License
