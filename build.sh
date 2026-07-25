@@ -1,6 +1,6 @@
 #!/bin/bash
 # RK3528 build pipeline — cache-safe, versioned, verified
-# Usage: BUILD_TAG=v30 bash build.sh
+# Usage: bash build.sh   (BUILD_TAG defaults to 1.13.7-e24c-1-<git-short-hash>)
 #
 # This script ALWAYS:
 # 1. Rebuilds U-Boot from scratch (--no-cache) with current patches
@@ -16,7 +16,7 @@ set -eou pipefail
 
 # --- Paths / registry / version pins (all overridable via env) ---
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
-TALOS_SRC_DIR="${TALOS_SRC_DIR:-$HOME/talos-src-v1.13.7}"
+TALOS_SRC_DIR="${TALOS_SRC_DIR:-$HOME/talos/sidero-talos}"
 REGISTRY="${REGISTRY:-localhost:5000}"
 
 # --- Sidero image refs (mirrored to ghcr.io/nhz-io/sidero-* by Phase C) ---
@@ -27,12 +27,15 @@ TOOLS="${TOOLS:-v1.9.0}"
 BLDR_IMAGE="${BLDR_IMAGE:-ghcr.io/nhz-io/sidero-bldr:v0.5.6}"
 
 # --- Build tag / image naming ---
-BUILD_TAG="${BUILD_TAG:-v30}"
+# Tag scheme: 1.13.7-e24c-<ITER>-<short-hash>  (ITER bumped manually across rebuilds from the same commit)
+DEFAULT_SHORT_HASH="$(git -C "${PROJECT_DIR}" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
+ITER="${ITER:-1}"
+BUILD_TAG="${BUILD_TAG:-1.13.7-e24c-${ITER}-${DEFAULT_SHORT_HASH}}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-ghcr.io/nhz-io}"
 
 # --- Imager (rebuilt from nhz-io/sidero-talos fork; falls back to existing tag) ---
 IMAGER_TAG="${IMAGER_TAG:-${IMAGE_PREFIX}/imager-rk3528:v1.13.7-v12}"
-INSTALLER_TAG="${REGISTRY}/talos-rk3528:v1.13.7-radxa-e24c-${BUILD_TAG}"
+INSTALLER_TAG="${IMAGE_PREFIX}/talos-sbc-rk3528-installer:${BUILD_TAG}"
 
 echo "============================================"
 echo "RK3528 build pipeline — ${BUILD_TAG}"
@@ -114,7 +117,7 @@ fi
 # --- Step 6: Build imager + installer + metal image ---
 echo ""
 echo "=== Step 6: Building imager + installer + metal image ==="
-mkdir -p "${PROJECT_DIR}/_out" "${TALOS_SRC_DIR}/_out"
+mkdir -p "${PROJECT_DIR}/_out"
 
 # Use the imager image (rebuild via scripts/rebuild-imager.sh if needed)
 docker run --rm --privileged --network host -v /dev:/dev -v /tmp:/tmp \
@@ -150,7 +153,7 @@ output:
   imageOptions:
     diskSize: 1306525696
     diskFormat: raw' | docker run --rm -i --privileged --network host -v /dev:/dev -v /tmp:/tmp \
-  -v "${TALOS_SRC_DIR}/_out:/out" \
+  -v "${PROJECT_DIR}/_out:/out" \
   "${INSTALLER_TAG}" \
   - --output /out 2>&1 | tail -5
 
@@ -158,9 +161,9 @@ output:
 echo ""
 echo "=== Step 7: Post-processing ==="
 RAW_FILE="/tmp/metal-arm64-${BUILD_TAG}.raw"
-ZST_FILE="${TALOS_SRC_DIR}/_out/metal-arm64-${BUILD_TAG}.raw.zst"
+ZST_FILE="${PROJECT_DIR}/_out/metal-arm64-${BUILD_TAG}.raw.zst"
 
-zstd -d "${TALOS_SRC_DIR}/_out/metal-arm64.raw.zst" -o "${RAW_FILE}" -f
+zstd -d "${PROJECT_DIR}/_out/metal-arm64.raw.zst" -o "${RAW_FILE}" -f
 
 # Always dd our separately-built and verified U-Boot binary
 dd if="${UBOOT_BIN}" of="${RAW_FILE}" bs=512 seek=64 conv=notrunc

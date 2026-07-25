@@ -8,7 +8,8 @@ post-install).
 
 ## Status
 
-v30 boots cleanly to Talos maintenance mode on Radxa E24C.
+Boots cleanly to Talos maintenance mode on Radxa E24C. Current image tag:
+`1.13.7-e24c-1-45e581e` (see [releases](https://github.com/nhz-io/talos-sbc-rk3528/releases)).
 
 - Kernel: stock Linux 6.18.39 (Talos config-arm64) — 6.19 crashes in
   `genpd_power_off_work_fn` on RK3528 SCMI; 6.18.39 is the known-good baseline.
@@ -21,6 +22,20 @@ v30 boots cleanly to Talos maintenance mode on Radxa E24C.
 
 See `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Personal/Main Vault/Talos/`
 for the full design notes and milestone history.
+
+## Tag scheme
+
+`1.13.7-e24c-<ITER>-<git-short-hash>`
+
+- `e24c` (not `rk3528`) because the RK3528 SoC family has multiple boards
+  (E24C, E54C, AOOSTAR) but this port is E24C-specific.
+- `<ITER>` is the build iteration, bumped manually across rebuilds from the
+  same commit.
+- `<git-short-hash>` is the 7-char short hash of the `talos-sbc-rk3528`
+  commit the image was built from.
+
+`build.sh` auto-derives the tag from the current commit + `ITER` env (default
+1). Override with `BUILD_TAG=...` to pin explicitly.
 
 ## Supply chain
 
@@ -57,16 +72,29 @@ docker buildx imagetools create \
 - `git`, `zstd`
 - Local docker registry (for the build pipeline to push intermediate overlays to)
 
-## Usage
+## Workspace layout
 
-### One-time setup
+This repo is consumed as a submodule of
+[`nhz-io/talos-workspace`](https://github.com/nhz-io/talos-workspace). The
+canonical clone paths are:
+
+```
+~/talos/                          # talos-workspace (parent)
+├── talos-sbc-rk3528/             # this repo
+└── sidero-talos/                 # Talos source fork (default TALOS_SRC_DIR)
+```
+
+To clone the full workspace with submodules:
 
 ```bash
-# Clone this repo
-git clone https://github.com/nhz-io/talos-sbc-rk3528.git ~/talos-sbc-rk3528
+git clone --recurse-submodules git@github.com:nhz-io/talos-workspace.git ~/talos
+```
 
-# Clone the Talos source fork
-./scripts/setup-talos-src.sh
+### Standalone clone (without the workspace)
+
+```bash
+git clone git@github.com:nhz-io/talos-sbc-rk3528.git ~/talos-sbc-rk3528
+./scripts/setup-talos-src.sh   # clones sidero-talos to ~/talos/sidero-talos by default
 
 # Optional: rebuild imager from fork (default: reuses existing published tag)
 ./scripts/rebuild-imager.sh
@@ -75,16 +103,16 @@ git clone https://github.com/nhz-io/talos-sbc-rk3528.git ~/talos-sbc-rk3528
 ### Build
 
 ```bash
-BUILD_TAG=v31 bash build.sh
+bash build.sh
+# Output: _out/metal-arm64-1.13.7-e24c-1-<short-hash>.raw.zst
 ```
-
-Output: `~/talos-src-v1.13.7/_out/metal-arm64-v31.raw.zst`
 
 ### Flash
 
 ```bash
-zstd -d metal-arm64-v31.raw.zst -o metal-arm64-v31.raw
-sudo dd if=metal-arm64-v31.raw of=/dev/rdiskN bs=4M conv=sync
+zstd -d _out/metal-arm64-1.13.7-e24c-1-<short-hash>.raw.zst \
+      -o metal-arm64.raw
+sudo dd if=metal-arm64.raw of=/dev/rdiskN bs=4M conv=sync
 ```
 
 ## Environment variables
@@ -93,16 +121,17 @@ sudo dd if=metal-arm64-v31.raw of=/dev/rdiskN bs=4M conv=sync
 
 | Var | Default | What it controls |
 |-----|---------|-------------------|
-| `BUILD_TAG` | `v30` | Tag suffix for all built images |
+| `BUILD_TAG` | `1.13.7-e24c-${ITER:-1}-<git-short-hash>` | Tag suffix for all built images |
+| `ITER` | `1` | Build iteration; bump across rebuilds from the same commit |
 | `PROJECT_DIR` | `$(dirname $0)` | Repo path (where Pkgfile lives) |
-| `TALOS_SRC_DIR` | `$HOME/talos-src-v1.13.7` | Talos source path |
-| `REGISTRY` | `localhost:5000` | Where to push overlay + installer images |
+| `TALOS_SRC_DIR` | `$HOME/talos/sidero-talos` | Talos source path |
+| `REGISTRY` | `localhost:5000` | Where to push overlay (for imager to pull) |
 | `PKGS_PREFIX` | `ghcr.io/siderolabs` | Sidero package image namespace |
 | `PKGS` | `v1.9.0` | Sidero package tag |
 | `TOOLS_PREFIX` | `ghcr.io/siderolabs` | Tools image namespace |
 | `TOOLS` | `v1.9.0` | Tools image tag |
 | `BLDR_IMAGE` | `ghcr.io/nhz-io/sidero-bldr:v0.5.6` | bldr syntax image |
-| `IMAGE_PREFIX` | `ghcr.io/nhz-io` | Where to push U-Boot + overlay images |
+| `IMAGE_PREFIX` | `ghcr.io/nhz-io` | Where to push U-Boot + overlay + installer images |
 | `IMAGER_TAG` | `ghcr.io/nhz-io/imager-rk3528:v1.13.7-v12` | Imager image to use |
 
 ## Layout

@@ -3,12 +3,12 @@
 # Usage: ./scripts/rebuild-imager.sh [tag]
 #
 # Outputs a docker image: ghcr.io/nhz-io/imager-rk3528:<tag>
-# Default tag: v1.13.7-rk3528-v1  (matches "after migration" target per plan)
+# Default tag: v1.13.7-rk3528-v1
 
 set -eou pipefail
 
 TAG="${1:-v1.13.7-rk3528-v1}"
-TALOS_SRC_DIR="${TALOS_SRC_DIR:-$HOME/talos-src-v1.13.7}"
+TALOS_SRC_DIR="${TALOS_SRC_DIR:-$HOME/talos/sidero-talos}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-ghcr.io/nhz-io}"
 IMAGER_TAG="${IMAGE_PREFIX}/imager-rk3528:${TAG}"
 

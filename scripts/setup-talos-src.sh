@@ -2,12 +2,12 @@
 # Clone the Talos source fork to the target directory.
 # Usage: ./scripts/setup-talos-src.sh [target_dir]
 #
-# Defaults to $TALOS_SRC_DIR or ~/talos-src-v1.13.7.
+# Defaults to $TALOS_SRC_DIR or ~/talos/sidero-talos (the talos-workspace submodule).
 # Idempotent: if the dir exists with the right branch, no-op.
 
 set -eou pipefail
 
-TALOS_SRC_DIR="${1:-${TALOS_SRC_DIR:-$HOME/talos-src-v1.13.7}}"
+TALOS_SRC_DIR="${1:-${TALOS_SRC_DIR:-$HOME/talos/sidero-talos}}"
 BRANCH="${TALOS_BRANCH:-v1.13.7-rk3528}"
 FORK_URL="${TALOS_FORK_URL:-https://github.com/nhz-io/sidero-talos.git}"
 
