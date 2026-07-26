@@ -47,7 +47,7 @@ steps:
       - |
         mkdir -p /rootfs/artifacts/arm64/u-boot/radxa-e24c
         cp -v .config /rootfs/artifacts/arm64/u-boot/radxa-e24c/u-boot.config
-        cp -v -t /rootfs/artifacts/arm64/u-boot/radxa-e24c u-boot-rockchip.bin
+        cp -v -t /rootfs/artifacts/arm64/u-boot/radxa-e24c u-boot-rockchip.bin u-boot-rockchip-spi.bin
 finalize:
   - from: /rootfs
     to: /rootfs
