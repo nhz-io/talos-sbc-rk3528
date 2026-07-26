@@ -71,15 +71,19 @@ echo "=== Step 2: Extracting U-Boot binary ==="
 CONTAINER_NAME="uboot-extract-${BUILD_TAG}"
 docker create --name="${CONTAINER_NAME}" --entrypoint /bin/true "${UBOOT_TAG}" 2>/dev/null
 UBOOT_BIN="/tmp/u-boot-rockchip-${BUILD_TAG}.bin"
+UBOOT_SPI_BIN="/tmp/u-boot-rockchip-spi-${BUILD_TAG}.bin"
 docker cp "${CONTAINER_NAME}:/rootfs/artifacts/arm64/u-boot/radxa-e24c/u-boot-rockchip.bin" "${UBOOT_BIN}" 2>&1
+docker cp "${CONTAINER_NAME}:/rootfs/artifacts/arm64/u-boot/radxa-e24c/u-boot-rockchip-spi.bin" "${UBOOT_SPI_BIN}" 2>&1
 docker rm "${CONTAINER_NAME}" 2>/dev/null
 
 # --- Step 3: Basic U-Boot binary verification ---
 echo ""
 echo "=== Step 3: Verifying U-Boot binary ==="
-echo "Binary: ${UBOOT_BIN} ($(ls -lh ${UBOOT_BIN} | awk '{print $5}'))"
+echo "SD-card:  ${UBOOT_BIN} ($(ls -lh ${UBOOT_BIN} | awk '{print $5}'))"
+echo "SPI:      ${UBOOT_SPI_BIN} ($(ls -lh ${UBOOT_SPI_BIN} | awk '{print $5}'))"
 echo "MD5: $(md5sum ${UBOOT_BIN} | awk '{print $1}')"
 strings "${UBOOT_BIN}" | grep "U-Boot 20" | head -1
+strings "${UBOOT_SPI_BIN}" | grep -i "bootefi" | head -1 && echo "SPI: bootefi support OK" || echo "SPI: WARNING - no bootefi found"
 
 # --- Step 4: Build overlay (--no-cache to force U-Boot stage rebuild) ---
 echo ""
@@ -197,12 +201,16 @@ BUILD_TAG="${BUILD_TAG}" \
   DTB_FILE="/tmp/rk3528-radxa-e24c-v13.dtb" \
   bash scripts/build-rescue.sh
 
+# Copy SPI flash image to _out for convenience
+cp "${UBOOT_SPI_BIN}" "${PROJECT_DIR}/_out/u-boot-rockchip-spi-${BUILD_TAG}.bin"
+
 echo ""
 echo "============================================"
 echo "BUILD COMPLETE: ${BUILD_TAG}"
 echo "============================================"
 echo "Image:      ${ZST_FILE} ($(ls -lh ${ZST_FILE} | awk '{print $5}'))"
 echo "Rescue:     ${PROJECT_DIR}/_out/metal-rescue-arm64-${BUILD_TAG}.raw"
+echo "SPI flash:  ${PROJECT_DIR}/_out/u-boot-rockchip-spi-${BUILD_TAG}.bin"
 echo "U-Boot:     ${UBOOT_TAG}"
 echo "Overlay:    ${OVERLAY_TAG}"
 echo "Installer:  ${INSTALLER_TAG}"

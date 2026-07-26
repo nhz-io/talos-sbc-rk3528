@@ -67,15 +67,11 @@ jobs:
           path: _out/metal-rescue-arm64-${{ github.ref_name }}.raw
           retention-days: 90
 
-      - name: Build U-Boot SPI flash image
-        run: |
-          bash scripts/build-uboot-spi.sh
-
       - name: Upload SPI flash image artifact
         uses: actions/upload-artifact@v4
         with:
           name: u-boot-rockchip-spi-${{ github.ref_name }}
-          path: /tmp/u-boot-rockchip-spi-direct.bin
+          path: _out/u-boot-rockchip-spi-${{ github.ref_name }}.bin
           retention-days: 90
 
       - name: Push overlay image to ghcr.io
