@@ -184,12 +184,26 @@ echo "OK: Raw image built successfully"
 # Compress
 zstd -19 -f "${RAW_FILE}" -o "${ZST_FILE}"
 
+# --- Step 9: Build rescue image (Talos metal image with no META → installs to NVMe) ---
+echo ""
+echo "=== Step 9: Building rescue image ==="
+BUILD_TAG="${BUILD_TAG}" \
+  PROJECT_DIR="${PROJECT_DIR}" \
+  REGISTRY="${REGISTRY}" \
+  IMAGER_TAG="${IMAGER_TAG}" \
+  INSTALLER_TAG="${INSTALLER_TAG}" \
+  OVERLAY_TAG="${OVERLAY_TAG}" \
+  UBOOT_BIN="${UBOOT_BIN}" \
+  DTB_FILE="/tmp/rk3528-radxa-e24c-v13.dtb" \
+  bash scripts/build-rescue.sh
+
 echo ""
 echo "============================================"
 echo "BUILD COMPLETE: ${BUILD_TAG}"
 echo "============================================"
-echo "Image:     ${ZST_FILE} ($(ls -lh ${ZST_FILE} | awk '{print $5}'))"
-echo "U-Boot:    ${UBOOT_TAG}"
-echo "Overlay:   ${OVERLAY_TAG}"
-echo "Installer: ${INSTALLER_TAG}"
+echo "Image:      ${ZST_FILE} ($(ls -lh ${ZST_FILE} | awk '{print $5}'))"
+echo "Rescue:     ${PROJECT_DIR}/_out/metal-rescue-arm64-${BUILD_TAG}.raw"
+echo "U-Boot:     ${UBOOT_TAG}"
+echo "Overlay:    ${OVERLAY_TAG}"
+echo "Installer:  ${INSTALLER_TAG}"
 echo "============================================"

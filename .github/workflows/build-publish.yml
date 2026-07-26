@@ -43,7 +43,7 @@ jobs:
         run: |
           bash scripts/setup-talos-src.sh /tmp/talos-src-v1.13.7
 
-      - name: Build metal image
+      - name: Build metal image + rescue image
         env:
           BUILD_TAG: ${{ github.ref_name }}
           PROJECT_DIR: ${{ github.workspace }}
@@ -57,7 +57,25 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: metal-arm64-${{ github.ref_name }}
-          path: /tmp/talos-src-v1.13.7/_out/metal-arm64-${{ github.ref_name }}.raw.zst
+          path: _out/metal-arm64-${{ github.ref_name }}.raw.zst
+          retention-days: 90
+
+      - name: Upload rescue image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-rescue-arm64-${{ github.ref_name }}
+          path: _out/metal-rescue-arm64-${{ github.ref_name }}.raw
+          retention-days: 90
+
+      - name: Build U-Boot SPI flash image
+        run: |
+          bash scripts/build-uboot-spi.sh
+
+      - name: Upload SPI flash image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: u-boot-rockchip-spi-${{ github.ref_name }}
+          path: /tmp/u-boot-rockchip-spi-direct.bin
           retention-days: 90
 
       - name: Push overlay image to ghcr.io
@@ -70,8 +88,8 @@ jobs:
       - name: Push installer image to ghcr.io
         run: |
           docker tag ghcr.io/nhz-io/imager-rk3528:v1.13.7-v12 \
-                     ghcr.io/nhz-io/talos-rk3528:v1.13.7-radxa-e24c-${{ github.ref_name }}
-          docker push ghcr.io/nhz-io/talos-rk3528:v1.13.7-radxa-e24c-${{ github.ref_name }}
+                     ghcr.io/nhz-io/talos-sbc-rk3528-installer:${{ github.ref_name }}
+          docker push ghcr.io/nhz-io/talos-sbc-rk3528-installer:${{ github.ref_name }}
 
   release:
     needs: build
@@ -81,10 +99,25 @@ jobs:
         with:
           name: metal-arm64-${{ github.ref_name }}
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: metal-rescue-arm64-${{ github.ref_name }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: u-boot-rockchip-spi-${{ github.ref_name }}
+
+      - name: Rename SPI image
+        run: |
+          mv u-boot-rockchip-spi-direct.bin u-boot-rockchip-spi-${{ github.ref_name }}.bin
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: metal-arm64-${{ github.ref_name }}.raw.zst
+          files: |
+            metal-arm64-${{ github.ref_name }}.raw.zst
+            metal-rescue-arm64-${{ github.ref_name }}.raw
+            u-boot-rockchip-spi-${{ github.ref_name }}.bin
           generate_release_notes: true
           draft: false
           prerelease: false

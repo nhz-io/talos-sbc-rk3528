@@ -97,3 +97,10 @@ jobs:
           # Full build is done in build-publish.yml on tag push; CI smoke just checks
           # the pipeline doesn't immediately explode.
           grep -E "(^#[0-9]+ (DONE|ERROR)|CACHED)" /tmp/smoke-build.log | tail -10
+
+      - name: Verify SPI build script syntax
+        run: |
+          # shellcheck the SPI build script (already covered by shellcheck above,
+          # but also verify the script parses without running the full U-Boot build)
+          bash -n scripts/build-uboot-spi.sh
+          bash -n scripts/build-rescue.sh
