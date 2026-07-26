@@ -131,7 +131,7 @@ echo "=== Step 6: Building imager + installer + metal image ==="
 mkdir -p "${PROJECT_DIR}/_out"
 
 # Use the imager image (rebuild via scripts/rebuild-imager.sh if needed)
-docker run --rm --privileged --network host -v /dev:/dev -v /tmp:/tmp \
+docker run --rm --privileged --network host -v /dev:/dev --tmpfs /tmp:rw,exec,size=2g \
   -v "${PROJECT_DIR}/_out:/out" \
   -e PLATFORM=container \
   "${IMAGER_TAG}" \
@@ -169,7 +169,7 @@ output:
   outFormat: .zst
   imageOptions:
     diskSize: 1306525696
-    diskFormat: raw' | docker run --rm -i --privileged --network host -v /dev:/dev -v /tmp:/tmp \
+    diskFormat: raw' | docker run --rm -i --privileged --network host -v /dev:/dev --tmpfs /tmp:rw,exec,size=2g \
   -v "${PROJECT_DIR}/_out:/out" \
   "${INSTALLER_TAG}" \
   - --output /out 2>&1 | tail -5
