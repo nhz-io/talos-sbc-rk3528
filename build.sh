@@ -26,6 +26,13 @@ TOOLS_PREFIX="${TOOLS_PREFIX:-ghcr.io/siderolabs}"
 TOOLS="${TOOLS:-v1.9.0}"
 BLDR_IMAGE="${BLDR_IMAGE:-ghcr.io/nhz-io/sidero-bldr:v0.5.6}"
 
+# --- Talos system extensions (official, multi-arch: amd64 + arm64) ---
+# Pinned to extensions repo tag v1.13.7 (talos-extensions submodule).
+# Versions from siderolabs/extensions/network/vars.yaml @ v1.13.7.
+# Baked into the metal image initramfs via the imager profile (input.systemExtensions).
+TAILSCALE_IMAGE="${TAILSCALE_IMAGE:-ghcr.io/siderolabs/tailscale:1.98.8}"
+CLOUDFLARED_IMAGE="${CLOUDFLARED_IMAGE:-ghcr.io/siderolabs/cloudflared:2026.7.1}"
+
 # --- Build tag / image naming ---
 # Tag scheme: 1.13.7-e24c-<ITER>-<short-hash>  (ITER bumped manually across rebuilds from the same commit)
 DEFAULT_SHORT_HASH="$(git -C "${PROJECT_DIR}" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
@@ -132,6 +139,8 @@ docker run --rm --privileged --network host -v /dev:/dev -v /tmp:/tmp \
   --overlay-image "${REGISTRY}/talos-sbc-rk3528:${BUILD_TAG}" \
   --insecure --overlay-name radxa-e24c \
   --base-installer-image "${IMAGER_TAG}" \
+  --system-extension-image "${TAILSCALE_IMAGE}" \
+  --system-extension-image "${CLOUDFLARED_IMAGE}" \
   --output /out 2>&1 | tail -3
 
 docker load -i "${PROJECT_DIR}/_out/installer-arm64.tar" 2>&1 | tail -1
@@ -146,6 +155,10 @@ customization:
   extraKernelArgs:
     - ip=wan:dhcp
     - talos.network.interface.ignore=end0
+input:
+  systemExtensions:
+    - imageRef: '"${TAILSCALE_IMAGE}"'
+    - imageRef: '"${CLOUDFLARED_IMAGE}"'
 overlay:
   name: radxa-e24c
   image:
