@@ -64,8 +64,7 @@ Read `build.sh`, `scripts/rebuild-imager.sh`, and the Obsidian note `Building Ta
 | Artifact | Current tag | Purpose |
 |----------|-------------|---------|
 | `ghcr.io/nhz-io/imager-rk3528` | `v1.13.7-v14` | Imager (SBC kernel + effivarfs patch) |
-| `ghcr.io/nhz-io/talos-sbc-rk3528-installer` | `1.13.7-e24c-2-e794f71` | Extended installer (tailscale + cloudflared) |
-| `ghcr.io/nhz-io/talos-sbc-rk3528` | `1.13.7-e24c-1-45e581e` | Overlay (U-Boot + DTB) |
+| `ghcr.io/nhz-io/talos-sbc-rk3528-installer` | `1.13.7-e24c-3-a6c1bdc` | Extended installer (tailscale + cloudflared baked in UKI) |
 
 ## Fork branch + tag
 
@@ -73,6 +72,21 @@ Read `build.sh`, `scripts/rebuild-imager.sh`, and the Obsidian note `Building Ta
 - Tag: `v1.13.7-e24c-2-e794f71` at HEAD `e794f71`
 - effivarfs patch: commit `a6c1bdc52`
 - Makefile sed fix: commit `e794f71`
+
+## Cluster: shinsenkyo
+
+| Node | Role | IP | Tailscale IP | Talos version | Extensions |
+|------|------|----|----|----|----|
+| e24c | control-plane | 55.55.55.243 | 100.101.108.84 | v1.13.7-e24c-2-e794f71 | tailscale, cloudflared |
+| tenma | worker | 55.55.55.90 | 100.116.29.109 | v1.13.7 (factory schematic aa3a362a) | tailscale, cloudflared, nvidia 595.71.05, i915, intel-ucode, mei |
+
+SOPS-encrypted configs in `talos-local-cluster` (private repo). Decrypt before use:
+```bash
+export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
+sops --decrypt e24c/talosconfig > /tmp/tc.yaml
+TALOSCONFIG=/tmp/tc.yaml talosctl -n 55.55.55.243 version
+rm /tmp/tc.yaml
+```
 
 ## Known-good kernel hash (for verification)
 
